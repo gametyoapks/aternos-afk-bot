@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ToldBot Hosting — Ücretsiz 7/24 Minecraft Bot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #e5e7eb; font-family: monospace; min-height: 100vh; display: flex; flex-direction: column; }
+
+    .header { text-align: center; padding: 44px 20px 30px; border-bottom: 1px solid #1a1a1a; }
+    .header h1 { font-family: 'Press Start 2P', monospace; color: #4ade80; font-size: clamp(11px, 2.8vw, 20px); line-height: 1.7; text-shadow: 0 0 24px rgba(74,222,128,0.3); }
+    .header p { color: #4b5563; font-size: 11px; margin-top: 14px; letter-spacing: 2px; }
+
+    .main { max-width: 560px; margin: 0 auto; padding: 30px 16px 50px; width: 100%; flex: 1; }
+
+    .card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 24px; margin-bottom: 14px; }
+
+    .field-label { display: block; font-size: 10px; color: #6b7280; margin-bottom: 7px; letter-spacing: 2px; text-transform: uppercase; }
+
+    input[type="text"], input[type="number"] {
+      width: 100%; background: #0a0a0a; border: 1px solid #2a2a2a; color: #e5e7eb;
+      font-family: monospace; font-size: 14px; padding: 11px 13px; border-radius: 6px;
+      outline: none; margin-bottom: 18px; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus { border-color: #4ade80; box-shadow: 0 0 0 2px rgba(74,222,128,0.1); }
+    input:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #0a0a0a; border: 1px solid #222; border-radius: 6px; margin-bottom: 22px; }
+    .toggle-label-text { font-size: 11px; color: #9ca3af; }
+    .toggle-switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .slider { position: absolute; inset: 0; background: #2a2a2a; border-radius: 26px; cursor: pointer; transition: 0.3s; }
+    .slider::before { content: ''; position: absolute; width: 20px; height: 20px; background: #6b7280; border-radius: 50%; left: 3px; top: 3px; transition: 0.3s; }
+    .toggle-switch input:checked + .slider { background: #166534; }
+    .toggle-switch input:checked + .slider::before { transform: translateX(20px); background: #4ade80; }
+
+    .btn { display: block; width: 100%; padding: 14px 20px; border: none; border-radius: 7px; font-family: 'Press Start 2P', monospace; font-size: 10px; cursor: pointer; transition: all 0.2s; }
+    .btn-start { background: #4ade80; color: #0a0a0a; margin-bottom: 10px; }
+    .btn-start:hover:not(:disabled) { background: #22c55e; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(74,222,128,0.25); }
+    .btn-start:disabled { background: #1c1c1c; color: #374151; cursor: not-allowed; }
+    .btn-stop { background: transparent; color: #f87171; border: 1px solid #f8717155; }
+    .btn-stop:hover { background: rgba(248,113,113,0.08); border-color: #f87171; }
+
+    .status-card { display: flex; align-items: center; gap: 12px; padding: 13px 18px; background: #111; border: 1px solid #222; border-radius: 10px; margin-bottom: 14px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-offline { background: #374151; }
+    .dot-connecting { background: #fbbf24; animation: blink 0.9s infinite; }
+    .dot-online { background: #4ade80; animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+    .status-label { font-size: 11px; font-family: 'Press Start 2P', monospace; }
+    .label-offline { color: #4b5563; }
+    .label-connecting { color: #fbbf24; }
+    .label-online { color: #4ade80; }
+    .status-user { margin-left: auto; font-size: 10px; color: #4ade8088; }
+
+    .terminal-card { background: #111; border: 1px solid #222; border-radius: 10px; overflow: hidden; }
+    .term-topbar { display: flex; align-items: center; gap: 7px; padding: 10px 14px; background: #0d0d0d; border-bottom: 1px solid #1a1a1a; }
+    .term-btn { width: 11px; height: 11px; border-radius: 50%; }
+    .term-title { font-size: 10px; color: #2d2d2d; margin-left: 10px; letter-spacing: 1px; }
+    .terminal { height: 320px; overflow-y: auto; padding: 14px; font-family: monospace; font-size: 12px; line-height: 2; scrollbar-width: thin; scrollbar-color: #222 transparent; }
+    .terminal::-webkit-scrollbar { width: 4px; }
+    .terminal::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+    .log-ts { color: #2d2d2d; }
+    .t-INFO { color: #9ca3af; } .m-INFO { color: #d1d5db; }
+    .t-AUTH { color: #fbbf24; } .m-AUTH { color: #fef3c7; }
+    .t-CHAT { color: #22d3ee; } .m-CHAT { color: #cffafe; }
+    .t-SPAWN { color: #4ade80; } .m-SPAWN { color: #d1fae5; }
+    .t-ERROR { color: #f87171; } .m-ERROR { color: #fee2e2; }
+    .t-RECONNECT { color: #a78bfa; } .m-RECONNECT { color: #ede9fe; }
+
+    .footer { text-align: center; padding: 28px 20px; border-top: 1px solid #111; }
+    .footer p { font-size: 10px; color: #2a2a2a; letter-spacing: 2px; }
+
+    @media (max-width: 480px) { .card { padding: 18px; } .status-user { display: none; } }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <h1>⛏ ToldBot Hosting</h1>
+  <p>ÜCRETSİZ 7/24 MİNECRAFT BOT HOSTİNG</p>
+</header>
+
+<div class="main">
+
+  <div class="card">
+    <label class="field-label" for="inp-ip">Sunucu IP</label>
+    <input id="inp-ip" type="text" placeholder="toldsmp.aternos.me" />
+
+    <label class="field-label" for="inp-port">Port (İsteğe Bağlı)</label>
+    <input id="inp-port" type="number" placeholder="25565" value="25565" />
+
+    <div class="toggle-row">
+      <span class="toggle-label-text">Zaten kayıtlı mısın? önceden botu bu sunucuda kullandın mı?</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="tog-reg" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button class="btn btn-start" id="btn-start">🚀 BOTU BAŞLAT</button>
+    <button class="btn btn-stop" id="btn-stop" style="display:none">⛔ DURDUR</button>
+  </div>
+
+  <div class="status-card">
+    <div class="status-dot dot-offline" id="status-dot"></div>
+    <span class="status-label label-offline" id="status-label">○ ÇEVRİMDIŞI</span>
+    <span class="status-user" id="status-user"></span>
+  </div>
+
+  <div class="terminal-card">
+    <div class="term-topbar">
+      <div class="term-btn" style="background:#f87171"></div>
+      <div class="term-btn" style="background:#fbbf24"></div>
+      <div class="term-btn" style="background:#4ade80"></div>
+      <span class="term-title">toldbot@terminal ~ live logs</span>
+    </div>
+    <div class="terminal" id="terminal"></div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <p>Toldmcyt tarafından YAPILDI</p>
+</footer>
+
+<!-- Socket.io sunucu tarafından servis edilir -->
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const terminal  = document.getElementById('terminal');
+  const statusDot = document.getElementById('status-dot');
+  const statusLbl = document.getElementById('status-label');
+  const statusUsr = document.getElementById('status-user');
+  const btnStart  = document.getElementById('btn-start');
+  const btnStop   = document.getElementById('btn-stop');
+  const inpIp     = document.getElementById('inp-ip');
+  const inpPort   = document.getElementById('inp-port');
+  const togReg    = document.getElementById('tog-reg');
+
+  // ─── Socket.io ───────────────────────────────────────
+  const socket = io();
+
+  socket.on('connect', () => {
+    addLog('INFO', '🔌 Sunucuya bağlandı.');
+  });
+
+  socket.on('disconnect', () => {
+    addLog('ERROR', '🔌 Sunucu bağlantısı kesildi.');
+  });
+
+  socket.on('log', (entry) => {
+    const t = new Date(entry.timestamp).toLocaleTimeString('tr-TR');
+    addLog(entry.type, entry.message, t);
+  });
+
+  socket.on('status', (data) => {
+    setStatus(data.status, data.username);
+  });
+
+  // ─── Yardımcılar ─────────────────────────────────────
+  function addLog(type, message, time) {
+    const t = time || new Date().toLocaleTimeString('tr-TR');
+    const div = document.createElement('div');
+    div.innerHTML =
+      '<span class="log-ts">[' + t + ']</span> ' +
+      '<span class="t-' + type + '">' + type + '</span> ' +
+      '<span class="m-' + type + '">' + escHtml(message) + '</span>';
+    terminal.appendChild(div);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+  }
+
+  function setStatus(s, user) {
+    const map = {
+      OFFLINE:    ['dot-offline',    'label-offline',    '○ ÇEVRİMDIŞI'],
+      CONNECTING: ['dot-connecting', 'label-connecting', '◌ BAĞLANIYOR...'],
+      ONLINE:     ['dot-online',     'label-online',     '● ÇEVRİMİÇİ']
+    };
+    const [dot, lbl, txt] = map[s] || map.OFFLINE;
+    statusDot.className = 'status-dot ' + dot;
+    statusLbl.className = 'status-label ' + lbl;
+    statusLbl.textContent = txt;
+    statusUsr.textContent = user ? '» ' + user : '';
+
+    const running = s === 'ONLINE' || s === 'CONNECTING';
+    btnStart.style.display = running ? 'none' : 'block';
+    btnStop.style.display  = running ? 'block' : 'none';
+    inpIp.disabled   = running;
+    inpPort.disabled  = running;
+    togReg.disabled   = running;
+  }
+
+  // ─── Butonlar ────────────────────────────────────────
+  btnStart.addEventListener('click', async () => {
+    const ip = inpIp.value.trim();
+    if (!ip) { alert('Lütfen sunucu IP adresini girin!'); return; }
+
+    terminal.innerHTML = '';
+    setStatus('CONNECTING', '');
+    btnStart.disabled = true;
+    btnStart.textContent = '⏳ BAŞLATILIYOR...';
+
+    try {
+      const r = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ip,
+          port: parseInt(inpPort.value) || 25565,
+          alreadyRegistered: togReg.checked
+        })
+      });
+      const d = await r.json();
+      if (d.error) {
+        addLog('ERROR', d.error);
+        setStatus('OFFLINE', '');
+      }
+    } catch(e) {
+      addLog('ERROR', 'İstek hatası: ' + e.message);
+      setStatus('OFFLINE', '');
+    }
+
+    btnStart.disabled = false;
+    btnStart.textContent = '🚀 BOTU BAŞLAT';
+  });
+
+  btnStop.addEventListener('click', async () => {
+    try { await fetch('/api/stop', { method: 'POST' }); } catch(e) {}
+    setStatus('OFFLINE', '');
+    addLog('INFO', '⛔ Bot durduruldu.');
+  });
+
+  // ─── Açılış ──────────────────────────────────────────
+  addLog('INFO', 'ToldBot Hosting v1.0 — Hazır.');
+</script>
+
+</body>
+</html>
