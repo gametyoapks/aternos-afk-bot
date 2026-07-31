@@ -7,34 +7,161 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-
 const PORT = process.env.PORT || 3000;
 
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ─── Bot Durumu ───────────────────────────────────────────
 let bot = null;
 let botConfig = null;
 let reconnectTimer = null;
 let isDestroyed = false;
 
-// ─── Log Yayını ───────────────────────────────────────────
 function emitLog(type, message) {
   const entry = { type, message, timestamp: new Date().toISOString() };
   console.log(`[${type}] ${message}`);
   io.emit('log', entry);
 }
-
 function emitStatus(status, username) {
   io.emit('status', { status, username: username || null });
 }
 
-// ─── Bot Durdur ───────────────────────────────────────────
 function stopBot() {
   isDestroyed = true;
-  if (reconnectTimer) {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (bot) { try { bot.quit(); } catch(e) {} bot = null; }
+  emitStatus('OFFLINE');
+}
+
+function startBot(config) {
+  botConfig = config;
+  isDestroyed = false;
+  const username = 'ToldBot_' + (Math.floor(Math.random() * 9000) + 1000);
+  emitLog('INFO', `${config.ip}:${config.port} adresine baglaniliyor...`);
+  emitLog('INFO', `Kullanici adi: ${username}`);
+  emitStatus('CONNECTING', username);
+
+  try {
+    bot = mineflayer.createBot({
+      host: config.ip,
+      port: parseInt(config.port) || 25565,
+      username: username,
+      version: false,
+      auth: 'offline',
+      hideErrors: false,
+    });
+  } catch(err) {
+    emitLog('ERROR', 'Bot olusturulamadi: ' + err.message);
+    emitStatus('OFFLINE');
+    return;
+  }
+
+  bot.once('spawn', () => {
+    emitLog('INFO', 'Sunucuya baglandi! Spawn bekleniyor...');
+    setTimeout(() => {
+      if (!bot || isDestroyed) return;
+      if (config.alreadyRegistered) {
+        emitLog('AUTH', '/login bot123456789 gonderiliyor...');
+        bot.chat('/login bot123456789');
+      } else {
+        emitLog('AUTH', '/register bot123456789 bot123456789 gonderiliyor...');
+        bot.chat('/register bot123456789 bot123456789');
+      }
+    }, 2000);
+  });
+
+  bot.on('chat', (sender, message) => {
+    const msg = (message || '').toLowerCase();
+    emitLog('CHAT', `[${sender}] ${message}`);
+    if (msg.includes('already') || msg.includes('zaten')) {
+      setTimeout(() => { if (!bot || isDestroyed) return; bot.chat('/login bot123456789'); }, 1000);
+    }
+    if (msg.includes('logged in') || msg.includes('welcome') || msg.includes('basarili') || msg.includes('hosgeldin')) {
+      emitLog('AUTH', 'Giris basarili!');
+      setTimeout(() => {
+        if (!bot || isDestroyed) return;
+        bot.chat('/spawn');
+        emitLog('SPAWN', '/spawn gonderildi');
+        setTimeout(() => {
+          if (!bot || isDestroyed) return;
+          bot.chat('thanks for using toldbothosting 7/24!');
+          emitLog('INFO', 'Bot aktif!');
+          emitStatus('ONLINE', bot.username);
+        }, 2000);
+      }, 3000);
+    }
+  });
+
+  bot.on('message', (jsonMsg) => {
+    const text = jsonMsg.toString().toLowerCase();
+    if (text.includes('already') || text.includes('zaten')) {
+      setTimeout(() => { if (!bot || isDestroyed) return; bot.chat('/login bot123456789'); }, 1000);
+    }
+    if (text.includes('logged in') || text.includes('welcome') || text.includes('basarili') || text.includes('hosgeldin')) {
+      emitLog('AUTH', 'Sistem: Giris basarili!');
+      setTimeout(() => {
+        if (!bot || isDestroyed) return;
+        bot.chat('/spawn');
+        setTimeout(() => {
+          if (!bot || isDestroyed) return;
+          bot.chat('thanks for using toldbothosting 7/24!');
+          emitStatus('ONLINE', bot.username);
+        }, 2000);
+      }, 3000);
+    }
+  });
+
+  bot.on('error', (err) => { emitLog('ERROR', err.message); });
+
+  bot.on('end', (reason) => {
+    if (isDestroyed) return;
+    emitLog('RECONNECT', `Baglanti kesildi. 5 saniyede yeniden baglaniliyor...`);
+    emitStatus('CONNECTING');
+    bot = null;
+    reconnectTimer = setTimeout(() => { if (!isDestroyed) startBot(botConfig); }, 5000);
+  });
+
+  bot.on('kicked', (reason) => {
+    if (isDestroyed) return;
+    emitLog('RECONNECT', `Atildi. 5 saniyede yeniden baglaniliyor...`);
+    emitStatus('CONNECTING');
+    bot = null;
+    reconnectTimer = setTimeout(() => { if (!isDestroyed) startBot(botConfig); }, 5000);
+  });
+}
+
+app.post('/api/start', (req, res) => {
+  const { ip, port = 25565, alreadyRegistered = false } = req.body;
+  if (!ip) return res.status(400).json({ error: 'IP gerekli' });
+  if (bot) stopBot();
+  setTimeout(() => { startBot({ ip: ip.trim(), port, alreadyRegistered }); }, 500);
+  res.json({ success: true });
+});
+
+app.post('/api/stop', (req, res) => {
+  stopBot();
+  res.json({ success: true });
+});
+
+app.get('/api/status', (req, res) => {
+  let status = 'OFFLINE', username = null;
+  if (bot) { status = 'ONLINE'; username = bot.username; }
+  else if (botConfig && !isDestroyed) { status = 'CONNECTING'; }
+  res.json({ status, username });
+});
+
+io.on('connection', (socket) => {
+  let status = 'OFFLINE', username = null;
+  if (bot) { status = 'ONLINE'; username = bot.username; }
+  else if (botConfig && !isDestroyed) { status = 'CONNECTING'; }
+  socket.emit('status', { status, username });
+  socket.emit('log', { type: 'INFO', message: 'ToldBot Hosting v1.0 — Hazir.', timestamp: new Date().toISOString() });
+});
+
+server.listen(PORT, () => { console.log(`ToldBot calisiyor: http://localhost:${PORT}`); });  if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
