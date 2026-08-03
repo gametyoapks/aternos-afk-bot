@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ToldBot Hosting — Ücretsiz 7/24 Minecraft Bot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #e5e7eb; font-family: monospace; min-height: 100vh; display: flex; flex-direction: column; }
+
+    .header { text-align: center; padding: 36px 20px 22px; border-bottom: 1px solid #1a1a1a; }
+    .header h1 { font-family: 'Press Start 2P', monospace; color: #4ade80; font-size: clamp(11px, 2.8vw, 20px); line-height: 1.7; text-shadow: 0 0 24px rgba(74,222,128,0.3); }
+    .header p { color: #4b5563; font-size: 11px; margin-top: 12px; letter-spacing: 2px; }
+    .slot-counter { display: inline-block; margin-top: 14px; padding: 6px 16px; background: #111; border: 1px solid #222; border-radius: 20px; font-size: 11px; color: #9ca3af; }
+    .slot-counter b { color: #4ade80; }
+
+    .main { max-width: 620px; margin: 0 auto; padding: 24px 16px 50px; width: 100%; flex: 1; }
+
+    .add-bot-btn {
+      display: block; width: 100%; padding: 14px 20px; margin-bottom: 20px;
+      background: transparent; border: 2px dashed #2a2a2a; border-radius: 10px;
+      color: #6b7280; font-family: 'Press Start 2P', monospace; font-size: 10px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .add-bot-btn:hover:not(:disabled) { border-color: #4ade80; color: #4ade80; }
+    .add-bot-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 22px; margin-bottom: 16px; }
+
+    .field-label { display: block; font-size: 10px; color: #6b7280; margin-bottom: 7px; letter-spacing: 2px; text-transform: uppercase; }
+
+    input[type="text"], input[type="number"] {
+      width: 100%; background: #0a0a0a; border: 1px solid #2a2a2a; color: #e5e7eb;
+      font-family: monospace; font-size: 14px; padding: 11px 13px; border-radius: 6px;
+      outline: none; margin-bottom: 16px; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus { border-color: #4ade80; box-shadow: 0 0 0 2px rgba(74,222,128,0.1); }
+    input:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #0a0a0a; border: 1px solid #222; border-radius: 6px; margin-bottom: 18px; }
+    .toggle-label-text { font-size: 11px; color: #9ca3af; }
+    .toggle-switch { position: relative; display: inline-block; width: 46px; height: 26px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .slider { position: absolute; inset: 0; background: #2a2a2a; border-radius: 26px; cursor: pointer; transition: 0.3s; }
+    .slider::before { content: ''; position: absolute; width: 20px; height: 20px; background: #6b7280; border-radius: 50%; left: 3px; top: 3px; transition: 0.3s; }
+    .toggle-switch input:checked + .slider { background: #166534; }
+    .toggle-switch input:checked + .slider::before { transform: translateX(20px); background: #4ade80; }
+
+    .btn { display: block; width: 100%; padding: 13px 20px; border: none; border-radius: 7px; font-family: 'Press Start 2P', monospace; font-size: 10px; cursor: pointer; transition: all 0.2s; }
+    .btn-start { background: #4ade80; color: #0a0a0a; }
+    .btn-start:hover:not(:disabled) { background: #22c55e; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(74,222,128,0.25); }
+    .btn-start:disabled { background: #1c1c1c; color: #374151; cursor: not-allowed; }
+    .btn-cancel { background: transparent; color: #6b7280; border: 1px solid #2a2a2a; margin-top: 8px; }
+    .btn-cancel:hover { border-color: #6b7280; }
+
+    .bot-card { background: #111; border: 1px solid #222; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+    .bot-card-top { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: #0d0d0d; border-bottom: 1px solid #1a1a1a; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-offline { background: #374151; }
+    .dot-connecting { background: #fbbf24; animation: blink 0.9s infinite; }
+    .dot-online { background: #4ade80; animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+    .bot-card-ip { flex: 1; font-size: 12px; color: #d1d5db; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bot-card-slot { font-size: 9px; color: #4b5563; background: #0a0a0a; padding: 3px 8px; border-radius: 10px; }
+    .icon-btn { background: transparent; border: none; color: #6b7280; cursor: pointer; font-size: 15px; padding: 4px 8px; transition: color 0.2s; }
+    .icon-btn:hover { color: #f87171; }
+    .icon-btn.players-btn:hover { color: #4ade80; }
+
+    .terminal { height: 220px; overflow-y: auto; padding: 14px; font-family: monospace; font-size: 11.5px; line-height: 1.9; scrollbar-width: thin; scrollbar-color: #222 transparent; }
+    .terminal::-webkit-scrollbar { width: 4px; }
+    .terminal::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+    .log-ts { color: #2d2d2d; }
+    .t-INFO { color: #9ca3af; } .m-INFO { color: #d1d5db; }
+    .t-AUTH { color: #fbbf24; } .m-AUTH { color: #fef3c7; }
+    .t-CHAT { color: #22d3ee; } .m-CHAT { color: #cffafe; }
+    .t-SPAWN { color: #4ade80; } .m-SPAWN { color: #d1fae5; }
+    .t-ERROR { color: #f87171; } .m-ERROR { color: #fee2e2; }
+    .t-RECONNECT { color: #a78bfa; } .m-RECONNECT { color: #ede9fe; }
+
+    .chat-row { display: flex; gap: 8px; padding: 12px 14px; background: #0d0d0d; border-top: 1px solid #1a1a1a; }
+    .chat-input { flex: 1; margin-bottom: 0 !important; font-size: 12px !important; padding: 9px 12px !important; }
+    .chat-send-btn { flex-shrink: 0; padding: 0 16px; background: #1f2937; color: #4ade80; border: 1px solid #2a2a2a; border-radius: 6px; font-family: monospace; font-size: 12px; cursor: pointer; }
+    .chat-send-btn:hover:not(:disabled) { border-color: #4ade80; }
+    .chat-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .players-panel { display: none; padding: 14px 18px; background: #0a0a0a; border-top: 1px solid #1a1a1a; font-size: 11px; color: #9ca3af; }
+    .players-panel.open { display: block; }
+    .players-panel .prow { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #161616; }
+    .players-panel .plist { margin-top: 8px; max-height: 120px; overflow-y: auto; }
+    .players-panel .plist span { display: inline-block; background: #111; border: 1px solid #222; border-radius: 4px; padding: 3px 8px; margin: 2px; font-size: 10px; color: #d1fae5; }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: #374151; font-size: 11px; }
+
+    .footer { text-align: center; padding: 24px 20px; border-top: 1px solid #111; }
+    .footer p { font-size: 10px; color: #2a2a2a; letter-spacing: 2px; }
+
+    @media (max-width: 480px) { .card, .bot-card-top { padding-left: 16px; padding-right: 16px; } }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <h1>⛏ ToldBot Hosting</h1>
+  <p>ÜCRETSİZ 7/24 MİNECRAFT BOT HOSTİNG</p>
+  <div class="slot-counter"><b id="slot-count">0</b>/<span id="slot-max">3</span> Bot Aktif</div>
+</header>
+
+<div class="main">
+
+  <button class="add-bot-btn" id="btn-show-form">+ YENİ BOT EKLE</button>
+
+  <div class="card" id="add-form-card" style="display:none">
+    <label class="field-label" for="inp-ip">Sunucu IP</label>
+    <input id="inp-ip" type="text" placeholder="toldsmp.aternos.me" />
+
+    <label class="field-label" for="inp-port">Port (İsteğe Bağlı)</label>
+    <input id="inp-port" type="number" placeholder="25565" value="25565" />
+
+    <div class="toggle-row">
+      <span class="toggle-label-text">Zaten kayıtlı mısın?</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="tog-reg" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button class="btn btn-start" id="btn-start">🚀 BOTU BAŞLAT</button>
+    <button class="btn btn-cancel" id="btn-cancel">İptal</button>
+  </div>
+
+  <div id="empty-state" class="empty-state">Henüz aktif bot yok. Yukarıdaki butondan ekleyebilirsin.</div>
+
+  <div id="bot-cards"></div>
+
+</div>
+
+<footer class="footer">
+  <p>❤️ İLE YAPILDI — SONSUZA KADAR ÜCRETSİZ</p>
+</footer>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const MAX_SLOTS = 3;
+  const socket = io();
+
+  const addFormCard   = document.getElementById('add-form-card');
+  const btnShowForm   = document.getElementById('btn-show-form');
+  const btnCancel     = document.getElementById('btn-cancel');
+  const btnStart      = document.getElementById('btn-start');
+  const inpIp         = document.getElementById('inp-ip');
+  const inpPort       = document.getElementById('inp-port');
+  const togReg        = document.getElementById('tog-reg');
+  const botCardsEl    = document.getElementById('bot-cards');
+  const emptyStateEl  = document.getElementById('empty-state');
+  const slotCountEl   = document.getElementById('slot-count');
+  const slotMaxEl     = document.getElementById('slot-max');
+
+  slotMaxEl.textContent = MAX_SLOTS;
+
+  // slot -> { ip, port, status, username, el, terminalEl, playersOpen }
+  const slotData = {};
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function updateCounterAndFormVisibility() {
+    const count = Object.keys(slotData).length;
+    slotCountEl.textContent = count;
+    btnShowForm.disabled = count >= MAX_SLOTS;
+    btnShowForm.textContent = count >= MAX_SLOTS ? `+ YENİ BOT EKLE (${MAX_SLOTS}/${MAX_SLOTS} DOLU)` : '+ YENİ BOT EKLE';
+    emptyStateEl.style.display = count === 0 ? 'block' : 'none';
+  }
+
+  function statusMap(s) {
+    const map = {
+      OFFLINE:    ['dot-offline',    '○ ÇEVRİMDIŞI'],
+      CONNECTING: ['dot-connecting', '◌ BAĞLANIYOR...'],
+      ONLINE:     ['dot-online',     '● ÇEVRİMİÇİ']
+    };
+    return map[s] || map.OFFLINE;
+  }
+
+  function createBotCard(slot, ip, port) {
+    const wrap = document.createElement('div');
+    wrap.className = 'bot-card';
+    wrap.id = 'bot-card-' + slot;
+    wrap.innerHTML = `
+      <div class="bot-card-top">
+        <div class="status-dot dot-connecting" id="dot-${slot}"></div>
+        <div class="bot-card-ip" id="ip-${slot}">${escHtml(ip)}:${escHtml(port)}</div>
+        <div class="bot-card-slot">Slot ${slot}</div>
+        <button class="icon-btn players-btn" id="players-btn-${slot}" title="Aktif Oyuncular">👥</button>
+        <button class="icon-btn" id="remove-btn-${slot}" title="Kaldır">✕</button>
+      </div>
+      <div class="players-panel" id="players-panel-${slot}"></div>
+      <div class="terminal" id="terminal-${slot}"></div>
+      <div class="chat-row">
+        <input type="text" class="chat-input" id="chat-input-${slot}" placeholder="Sohbete mesaj gönder..." maxlength="250" />
+        <button class="chat-send-btn" id="chat-send-${slot}">Gönder</button>
+      </div>
+    `;
+    botCardsEl.appendChild(wrap);
+
+    document.getElementById('remove-btn-' + slot).addEventListener('click', () => removeBot(slot));
+    document.getElementById('players-btn-' + slot).addEventListener('click', () => togglePlayers(slot));
+    document.getElementById('chat-send-' + slot).addEventListener('click', () => sendChat(slot));
+    document.getElementById('chat-input-' + slot).addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendChat(slot);
+    });
+
+    return wrap;
+  }
+
+  function addLog(slot, type, message, time) {
+    const termEl = document.getElementById('terminal-' + slot);
+    if (!termEl) return;
+    const t = time || new Date().toLocaleTimeString('tr-TR');
+    const div = document.createElement('div');
+    div.innerHTML =
+      '<span class="log-ts">[' + t + ']</span> ' +
+      '<span class="t-' + type + '">' + type + '</span> ' +
+      '<span class="m-' + type + '">' + escHtml(message) + '</span>';
+    termEl.appendChild(div);
+    termEl.scrollTop = termEl.scrollHeight;
+  }
+
+  function setSlotStatus(slot, status, username, ip) {
+    if (!slotData[slot]) {
+      // Bu slotu daha once gormedik (ornegin sayfa yeniden acildi), kart olustur
+      slotData[slot] = { ip: ip || '?', port: 25565, status, username, playersOpen: false };
+      createBotCard(slot, ip || '?', 25565);
+      updateCounterAndFormVisibility();
+    }
+    slotData[slot].status = status;
+    slotData[slot].username = username;
+    if (ip) slotData[slot].ip = ip;
+
+    const [dotClass, label] = statusMap(status);
+    const dotEl = document.getElementById('dot-' + slot);
+    if (dotEl) dotEl.className = 'status-dot ' + dotClass;
+
+    const chatSendBtn = document.getElementById('chat-send-' + slot);
+    const chatInputEl = document.getElementById('chat-input-' + slot);
+    if (chatSendBtn) chatSendBtn.disabled = status !== 'ONLINE';
+    if (chatInputEl) chatInputEl.disabled = status !== 'ONLINE';
+  }
+
+  function removeSlotCard(slot) {
+    delete slotData[slot];
+    const el = document.getElementById('bot-card-' + slot);
+    if (el) el.remove();
+    updateCounterAndFormVisibility();
+  }
+
+  // ─── Socket.io ───────────────────────────────────────
+  socket.on('connect', () => {
+    console.log('Sunucuya bağlandı.');
+  });
+
+  socket.on('status_bulk', (data) => {
+    (data.slots || []).forEach(s => {
+      if (!slotData[s.slot]) {
+        slotData[s.slot] = { ip: s.ip, port: s.port, status: s.status, username: s.username, playersOpen: false };
+        createBotCard(s.slot, s.ip, s.port);
+      }
+      setSlotStatus(s.slot, s.status, s.username, s.ip);
+    });
+    updateCounterAndFormVisibility();
+  });
+
+  socket.on('status', (data) => {
+    if (data.status === 'OFFLINE' && !slotData[data.slot]) return; // hic olusmamis bir slotu offline diye eklemeye gerek yok
+    setSlotStatus(data.slot, data.status, data.username, data.ip);
+  });
+
+  socket.on('log', (entry) => {
+    if (entry.slot === null || entry.slot === undefined) return; // genel/kritik loglari simdilik tum kartlara basmiyoruz
+    const t = new Date(entry.timestamp).toLocaleTimeString('tr-TR');
+    addLog(entry.slot, entry.type, entry.message, t);
+  });
+
+  socket.on('slot_removed', (data) => {
+    removeSlotCard(data.slot);
+  });
+
+  // ─── Form goster/gizle ────────────────────────────────
+  btnShowForm.addEventListener('click', () => {
+    addFormCard.style.display = 'block';
+    btnShowForm.style.display = 'none';
+  });
+  btnCancel.addEventListener('click', () => {
+    addFormCard.style.display = 'none';
+    btnShowForm.style.display = 'block';
+  });
+
+  // ─── Bot başlat ────────────────────────────────────────
+  btnStart.addEventListener('click', async () => {
+    const ip = inpIp.value.trim();
+    if (!ip) { alert('Lütfen sunucu IP adresini girin!'); return; }
+
+    btnStart.disabled = true;
+    btnStart.textContent = '⏳ BAŞLATILIYOR...';
+
+    try {
+      const r = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ip,
+          port: parseInt(inpPort.value) || 25565,
+          alreadyRegistered: togReg.checked
+        })
+      });
+      const d = await r.json();
+      if (d.error) {
+        alert(d.error);
+      } else {
+        inpIp.value = '';
+        togReg.checked = false;
+        addFormCard.style.display = 'none';
+        btnShowForm.style.display = 'block';
+      }
+    } catch (e) {
+      alert('İstek hatası: ' + e.message);
+    }
+
+    btnStart.disabled = false;
+    btnStart.textContent = '🚀 BOTU BAŞLAT';
+  });
+
+  // ─── Bot kaldır ────────────────────────────────────────
+  async function removeBot(slot) {
+    if (!confirm('Slot ' + slot + ' kaldırılsın mı? Bot durdurulacak ve slot boşalacak.')) return;
+    try {
+      await fetch('/api/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot })
+      });
+      removeSlotCard(slot);
+    } catch (e) { alert('Kaldırılamadı: ' + e.message); }
+  }
+
+  // ─── Sohbete mesaj gönder ──────────────────────────────
+  async function sendChat(slot) {
+    const inputEl = document.getElementById('chat-input-' + slot);
+    const msg = inputEl.value.trim();
+    if (!msg) return;
+
+    try {
+      const r = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot, message: msg })
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      inputEl.value = '';
+    } catch (e) { alert('Mesaj gönderilemedi: ' + e.message); }
+  }
+
+  // ─── Aktif oyuncular panelini ac/kapat ─────────────────
+  async function togglePlayers(slot) {
+    const panel = document.getElementById('players-panel-' + slot);
+    if (!panel) return;
+
+    if (panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      return;
+    }
+
+    panel.innerHTML = 'Yükleniyor...';
+    panel.classList.add('open');
+
+    try {
+      const r = await fetch('/api/players?slot=' + slot);
+      const d = await r.json();
+      if (d.error) {
+        panel.innerHTML = '<span style="color:#f87171">' + escHtml(d.error) + '</span>';
+        return;
+      }
+      const playersHtml = (d.players || [])
+        .map(p => '<span>' + escHtml(p) + '</span>')
+        .join('') || '<span style="color:#4b5563">Kimse yok</span>';
+
+      panel.innerHTML = `
+        <div class="prow"><span>Oyuncu Sayısı</span><span>${d.playerCount}</span></div>
+        <div class="prow"><span>Oyun Modu</span><span>${escHtml(d.gameMode || '-')}</span></div>
+        <div class="prow"><span>Boyut</span><span>${escHtml(d.dimension || '-')}</span></div>
+        <div class="prow"><span>Zorluk</span><span>${escHtml(d.difficulty || '-')}</span></div>
+        <div class="prow"><span>Can</span><span>${d.health ?? '-'}/20</span></div>
+        <div class="plist">${playersHtml}</div>
+      `;
+    } catch (e) {
+      panel.innerHTML = '<span style="color:#f87171">Hata: ' + escHtml(e.message) + '</span>';
+    }
+  }
+
+  // ─── Sayfa açılışında mevcut durumu çek ────────────────
+  (async () => {
+    try {
+      const r = await fetch('/api/status');
+      const d = await r.json();
+      (d.slots || []).forEach(s => {
+        if (!slotData[s.slot]) {
+          slotData[s.slot] = { ip: s.ip, port: s.port, status: s.status, username: s.username, playersOpen: false };
+          createBotCard(s.slot, s.ip, s.port);
+        }
+        setSlotStatus(s.slot, s.status, s.username, s.ip);
+      });
+      updateCounterAndFormVisibility();
+    } catch (e) {
+      console.error('Durum alınamadı:', e);
+    }
+  })();
+</script>
+
+</body>
+</html>
