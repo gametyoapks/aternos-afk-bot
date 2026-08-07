@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ToldBot Hosting — Ücretsiz 7/24 Minecraft Bot</title>
+  <title>ToldBot Hosting — bedava 7/24 Minecraft Bot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <style>
@@ -126,8 +126,31 @@
       </label>
     </div>
 
-    <button class="btn btn-start" id="btn-start">🚀 BOTU BAŞLAT</button>
-    <button class="btn btn-cancel" id="btn-cancel">İptal</button>
+    <div class="toggle-row">
+      <span class="toggle-label-text">🔄 Otomatik hesap rotasyonu(yeni ekledim)</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="tog-rotation" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div id="rotation-interval-row" style="display:none">
+      <label class="field-label" for="inp-rotation-mins">Rotasyon Aralığı (dakika, minimum 10)</label>
+      <input id="inp-rotation-mins" type="number" placeholder="30" value="30" min="10" />
+    </div>
+
+    <button class="btn btn-start" id="btn-start">🚀 BOTU BAŞLAT 🔥</button>
+    <button class="btn btn-cancel" id="btn-cancel">İptal❌</button>
+  </div>
+
+  <button class="add-bot-btn" id="btn-show-settings" style="margin-top:0; border-style:solid;">⚙️💾 BİLDİRİM AYARLARI</button>
+
+  <div class="card" id="settings-card" style="display:none">
+    <label class="field-label" for="inp-webhook">Discord Webhook URL (isteğe bağlı)</label>
+    <input id="inp-webhook" type="text" placeholder="https://discord.com/api/webhooks/..." />
+    <p style="font-size:10px;color:#4b5563;margin:-8px 0 16px;line-height:1.6;">Bot kalıcı bir hatadan durduğunda veya çok denedikten sonra vazgeçtiğinde bu Discord kanalına bildirim gider🔔.</p>
+    <button class="btn btn-start" id="btn-save-webhook">KAYDET</button>
+    <button class="btn btn-cancel" id="btn-cancel-settings">İptal</button>
   </div>
 
   <div id="empty-state" class="empty-state">Henüz aktif bot yok. Yukarıdaki butondan ekleyebilirsin.</div>
@@ -137,7 +160,7 @@
 </div>
 
 <footer class="footer">
-  <p>❤️ İLE YAPILDI — SONSUZA KADAR ÜCRETSİZ</p>
+  <p>toldmcyt tarafından YAPILDI — SONSUZA KADAR ÜCRETSİZ</p>
 </footer>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -152,10 +175,43 @@
   const inpIp         = document.getElementById('inp-ip');
   const inpPort       = document.getElementById('inp-port');
   const togReg        = document.getElementById('tog-reg');
+  const togRotation   = document.getElementById('tog-rotation');
+  const rotationRow   = document.getElementById('rotation-interval-row');
+  const inpRotationMins = document.getElementById('inp-rotation-mins');
   const botCardsEl    = document.getElementById('bot-cards');
   const emptyStateEl  = document.getElementById('empty-state');
   const slotCountEl   = document.getElementById('slot-count');
   const slotMaxEl     = document.getElementById('slot-max');
+
+  const btnShowSettings = document.getElementById('btn-show-settings');
+  const settingsCard    = document.getElementById('settings-card');
+  const btnCancelSettings = document.getElementById('btn-cancel-settings');
+  const btnSaveWebhook  = document.getElementById('btn-save-webhook');
+  const inpWebhook      = document.getElementById('inp-webhook');
+
+  togRotation.addEventListener('change', () => {
+    rotationRow.style.display = togRotation.checked ? 'block' : 'none';
+  });
+
+  btnShowSettings.addEventListener('click', () => {
+    settingsCard.style.display = settingsCard.style.display === 'none' ? 'block' : 'none';
+  });
+  btnCancelSettings.addEventListener('click', () => {
+    settingsCard.style.display = 'none';
+  });
+  btnSaveWebhook.addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: inpWebhook.value.trim() })
+      });
+      const d = await r.json();
+      if (d.error) { alert(d.error); return; }
+      alert(d.configured ? 'Webhook kaydedildi, test mesajı gönderildi.' : 'Webhook kaldırıldı.');
+      settingsCard.style.display = 'none';
+    } catch (e) { alert('Kaydedilemedi: ' + e.message); }
+  });
 
   slotMaxEl.textContent = MAX_SLOTS;
 
@@ -311,7 +367,9 @@
         body: JSON.stringify({
           ip,
           port: parseInt(inpPort.value) || 25565,
-          alreadyRegistered: togReg.checked
+          alreadyRegistered: togReg.checked,
+          rotationEnabled: togRotation.checked,
+          rotationIntervalMs: (parseInt(inpRotationMins.value) || 30) * 60 * 1000
         })
       });
       const d = await r.json();
@@ -320,6 +378,9 @@
       } else {
         inpIp.value = '';
         togReg.checked = false;
+        togRotation.checked = false;
+        rotationRow.style.display = 'none';
+        inpRotationMins.value = '30';
         addFormCard.style.display = 'none';
         btnShowForm.style.display = 'block';
       }
